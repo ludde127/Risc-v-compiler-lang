@@ -5,7 +5,7 @@ use std::fs;
 trait InstructionTrait {
     //fn new(name: &str, args: &[&str]) -> Self;
     fn get_instruction_name(&self) -> &str;
-    fn new(name: &str, arg_mappings: Vec<InputType>) -> Self;
+    fn new(name: &str, instruction_id: &str, instruction_type: InstructionType) -> Self;
     fn from_string(string: &str) -> Self;
 }
 
@@ -21,6 +21,28 @@ enum InputType {
     ImmediateValue20
 }
 
+#[derive(Debug)]
+enum InstructionType {
+    R,
+    I,
+    S,
+    B,
+    U,
+    J
+}
+impl InstructionType {
+    fn from_string(string: &str) -> Option<InstructionType> {
+        match string {
+            "R" => Some(InstructionType::R),
+            "I" => Some(InstructionType::I),
+            "S" => Some(InstructionType::S),
+            "B" => Some(InstructionType::B),
+            "U" => Some(InstructionType::U),
+            "J" => Some(InstructionType::J),
+            _ => None
+        }
+    }
+}
 impl InputType {
     fn from_string(string: &str) -> Option<InputType> {
         if string.contains("rd") {
@@ -39,8 +61,8 @@ impl InputType {
 
 struct Instruction {
     name: String,
-    nbr_of_args: u8, // How many arguments does the instruction take? B R0 Takes one argument.
-    args: Vec<InputType>
+    op_code: String,
+    instruction_type: InstructionType
 }
 
 impl InstructionTrait for Instruction {
@@ -48,27 +70,33 @@ impl InstructionTrait for Instruction {
         &self.name
     }
 
-    fn new(name: &str, args: Vec<InputType>) -> Self {
+    fn new(name: &str, instruction_id: &str, instruction_type: InstructionType) -> Self {
         Instruction {
             name: name.parse().unwrap(),
-            nbr_of_args: args.len() as u8,
-            args,
+            op_code: instruction_id.parse().unwrap(),
+            instruction_type: instruction_type
         }
     }
 
     fn from_string(string: &str) -> Self {
-        let mut args = vec![];
         let splat = string.split(" ");
         let mut name = "";
+        let mut instruction_bin: &str = "";
+        let mut t: Option<InstructionType> = None;
         for (i, item) in splat.enumerate() {
-            if i != 0 {
-                args.push(InputType::from_string(item).expect(&*format!("Could not parse input type {item}", item=item)));
+            if i == 1 {
+                t = InstructionType::from_string(item);
+            } else if i == 0 {
+                let splat: Vec<&str> = item.split(":").collect();
+                name = splat[0].trim();
+                instruction_bin = splat[1].trim();
+
             } else {
-                name = item;
+                panic!("TO MANY COLUMNS")
             }
 
         }
-        Self::new(name, args)
+        Self::new(name,instruction_bin, t.unwrap())
     }
 }
 
@@ -87,7 +115,9 @@ impl InstructionSet for RiscVInstructionSet {
     fn new() -> Self {
         let mut instructions = vec![];
         for row in fs::read_to_string("src/instructions/risc-v.txt").expect("Could not open file").split("\n") {
-            instructions.push(Instruction::from_string(row));
+            if row.len() > 0 {
+                instructions.push(Instruction::from_string(row));
+            }
         }
         RiscVInstructionSet { instructions, reserved_registers: 32 }
     }
@@ -104,7 +134,7 @@ impl InstructionSet for RiscVInstructionSet {
 impl Display for RiscVInstructionSet {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for i in &self.instructions {
-            write!(f, "Instruction: {}, args: {:?}\n", i.name, i.args);
+            write!(f, "Instruction: {}/{}, Type: {:?}\n", i.name, i.op_code, i.instruction_type);
         }
         Ok(())
     }

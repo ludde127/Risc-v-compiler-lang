@@ -1,1 +1,2 @@
-ADD rd rs1 rs2
+ADD:0110011 R
+SUB:0110011 R
