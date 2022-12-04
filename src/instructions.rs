@@ -12,12 +12,13 @@ pub trait InstructionTrait {
     fn from_string(string: &str) -> Self;
 }
 
+#[derive(Debug, Clone)]
 pub enum Input {
     Register(u16), // Integer is the registers numbering
     ImmediateValue(u32) // Value of immediate val.
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum InputType {
     InputRegister,
     DestinationRegister,
@@ -25,7 +26,7 @@ pub enum InputType {
     ImmediateValue20
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ExtraInstructionData {
     Funct3(String),
     Funct7(String)
@@ -85,6 +86,7 @@ impl InstructionType {
 
     pub fn format_machine_instruction(instruction: &FilledInstruction) -> Option<String> {
         use InstructionType::*;
+        let mut result_len = 0;
         let result = match instruction.instruction.instruction_type {
             R => {
                 let mut code: String = String::new();
@@ -92,7 +94,7 @@ impl InstructionType {
                 if let ExtraInstructionData::Funct7(s) = funct7 {
                     code += s;
                 };
-
+                result_len = code.len();
                 todo!();
                 Some(code)
             },
@@ -100,10 +102,10 @@ impl InstructionType {
         };
 
         // If the resulting code has incorrect size give None
-        if result.is_some() && result.unwrap().len() != 32 {
+        if result.is_some() && result_len != 32 {
             None
         } else {
-            result
+            result.clone()
         }
     }
 }
@@ -175,7 +177,7 @@ impl Display for Instruction {
     }
 }
 
-struct FilledInstruction {
+pub struct FilledInstruction {
     instruction: Instruction,
     data: Vec<Input>
 }
@@ -185,11 +187,13 @@ impl FilledInstruction {
         Self { instruction, data }
     }
 
-    fn args_and_data(&self) -> Vec<(&InputType, &Input)> {
-        let mut vector = vec![];
+    fn args_and_data(&self) -> Vec<(InputType, Input)> {
+        let mut vector: Vec<(InputType, Input)> = vec![];
         use InputType::*;
         use Input::*;
-        for (_type, data) in InstructionType::input_types(&self.instruction.instruction_type).iter().zip(&self.data) {
+        let part = InstructionType::input_types(&self.instruction.instruction_type);
+        let zipped = part.iter().zip(&self.data);
+        for (_type, data) in zipped{
             match _type {
                 DestinationRegister => assert!(match data {
                     Register(_) => true,
@@ -209,7 +213,7 @@ impl FilledInstruction {
                 }),
                 _ => todo!()
             }
-            vector.push((_type, data));
+            vector.push((_type.clone(), data.clone()));
         }
         vector
     }

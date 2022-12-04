@@ -1,12 +1,11 @@
 use std::fmt::{Display, Formatter};
 use std::fs;
-use crate::instructions::{Instruction, InstructionTrait, InstructionType};
+use crate::instructions::{Instruction, InstructionTrait, InstructionType, FilledInstruction};
 
 pub trait InstructionSet {
     fn new() -> Self;
     fn get_instructions(&self) -> &Vec<Instruction>;
     fn add_instruction(&mut self, instruction: Instruction);
-    fn to_binary_codes(&self) -> Vec<String>;
 
 }
 
@@ -33,11 +32,17 @@ impl InstructionSet for RiscVInstructionSet {
     fn add_instruction(&mut self, instruction: Instruction) {
         self.instructions.push(instruction);
     }
+}
 
+struct InstructionStack {
+    instructions: Vec<FilledInstruction>
+}
+
+impl InstructionStack {
     fn to_binary_codes(&self) -> Vec<String> {
         let mut codes: Vec<String> = vec![];
         for instruction in &self.instructions {
-            codes.push(InstructionType::format_machine_instruction(instruction));
+            codes.push(InstructionType::format_machine_instruction(instruction).expect("Could not translate instruction"));
         }
         codes
     }
