@@ -1,8 +1,9 @@
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::fs;
 
 //https://itnext.io/risc-v-instruction-set-cheatsheet-70961b4bbe8
-trait InstructionTrait {
+pub trait InstructionTrait {
     //fn new(name: &str, args: &[&str]) -> Self;
     fn get_instruction_name(&self) -> &str;
     fn new(name: &str, instruction_id: &str,
@@ -11,13 +12,13 @@ trait InstructionTrait {
     fn from_string(string: &str) -> Self;
 }
 
-enum Input {
+pub enum Input {
     Register(u16), // Integer is the registers numbering
     ImmediateValue(u32) // Value of immediate val.
 }
 
 #[derive(Debug)]
-enum InputType {
+pub enum InputType {
     InputRegister,
     DestinationRegister,
     ImmediateValue12,
@@ -25,7 +26,7 @@ enum InputType {
 }
 
 #[derive(Debug)]
-enum ExtraInstructionData {
+pub enum ExtraInstructionData {
     Funct3(String),
     Funct7(String)
 }
@@ -52,7 +53,7 @@ impl ExtraInstructionData {
 }
 
 #[derive(Debug)]
-enum InstructionType {
+pub enum InstructionType {
     R,
     I,
     S,
@@ -72,6 +73,39 @@ impl InstructionType {
             _ => None
         }
     }
+
+    pub fn input_types(instruction_type: &InstructionType) -> Vec<InputType> {
+        use InputType::*;
+        use InstructionType::*;
+        match instruction_type {
+            R => vec![DestinationRegister, InputRegister, InputRegister],
+            _ => todo!()
+        }
+    }
+
+    pub fn format_machine_instruction(instruction: &FilledInstruction) -> Option<String> {
+        use InstructionType::*;
+        let result = match instruction.instruction.instruction_type {
+            R => {
+                let mut code: String = String::new();
+                let funct7 = instruction.instruction.extra_instruction_data.iter().find(|i| {match i {ExtraInstructionData::Funct7(_) => true, _ => false}}).expect("Funct7 not found for R-type");
+                if let ExtraInstructionData::Funct7(s) = funct7 {
+                    code += s;
+                };
+
+                todo!();
+                Some(code)
+            },
+            _ => None
+        };
+
+        // If the resulting code has incorrect size give None
+        if result.is_some() && result.unwrap().len() != 32 {
+            None
+        } else {
+            result
+        }
+    }
 }
 impl InputType {
     fn from_string(string: &str) -> Option<InputType> {
@@ -89,7 +123,7 @@ impl InputType {
     }
 }
 
-struct Instruction {
+pub struct Instruction {
     name: String,
     op_code: String,
     instruction_type: InstructionType,
@@ -133,42 +167,50 @@ impl InstructionTrait for Instruction {
     }
 }
 
-pub trait InstructionSet {
-    fn new() -> Self;
-    fn get_instructions(&self) -> &Vec<Instruction>;
-    fn add_instruction(&mut self, instruction: Instruction);
-}
-
-pub struct RiscVInstructionSet {
-    instructions: Vec<Instruction>,
-    reserved_registers: u8
-}
-
-impl InstructionSet for RiscVInstructionSet {
-    fn new() -> Self {
-        let mut instructions = vec![];
-        for (i, row) in fs::read_to_string("src/instructions/risc-v.txt").expect("Could not open file").split("\n").enumerate() {
-            if row.len() > 0 && i != 0 {
-                instructions.push(Instruction::from_string(row));
-            }
-        }
-        RiscVInstructionSet { instructions, reserved_registers: 32 }
-    }
-
-    fn get_instructions(&self) -> &Vec<Instruction> {
-        &self.instructions
-    }
-
-    fn add_instruction(&mut self, instruction: Instruction) {
-        self.instructions.push(instruction);
-    }
-}
-
-impl Display for RiscVInstructionSet {
+impl Display for Instruction {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for i in &self.instructions {
-            write!(f, "Instruction: {}/{}, Type: {:?}, Extra: {:?}\n", i.name, i.op_code, i.instruction_type, i.extra_instruction_data);
-        }
+        write!(f, "Instruction: {}/{}, Type: {:?}, Extra: {:?}\n",
+               self.name, self.op_code, self.instruction_type, self.extra_instruction_data).expect("Could not print instruction");
         Ok(())
+    }
+}
+
+struct FilledInstruction {
+    instruction: Instruction,
+    data: Vec<Input>
+}
+
+impl FilledInstruction {
+    fn new(instruction: Instruction, data: Vec<Input>) -> Self {
+        Self { instruction, data }
+    }
+
+    fn args_and_data(&self) -> Vec<(&InputType, &Input)> {
+        let mut vector = vec![];
+        use InputType::*;
+        use Input::*;
+        for (_type, data) in InstructionType::input_types(&self.instruction.instruction_type).iter().zip(&self.data) {
+            match _type {
+                DestinationRegister => assert!(match data {
+                    Register(_) => true,
+                    _ => false
+                }),
+                InputRegister => assert!(match data {
+                    Register(_) => true,
+                    _ => false
+                }),
+                ImmediateValue12 => assert!(match data {
+                    ImmediateValue(_) => true,
+                    _ => false
+                }),
+                ImmediateValue20 => assert!(match data {
+                    ImmediateValue(_) => true,
+                    _ => false
+                }),
+                _ => todo!()
+            }
+            vector.push((_type, data));
+        }
+        vector
     }
 }

@@ -1,7 +1,8 @@
 mod instructions;
 mod io;
+mod instruction_set;
 
-use instructions::{RiscVInstructionSet, InstructionSet};
+use instruction_set::{RiscVInstructionSet, InstructionSet};
 
 fn main() {
     println!("Hello, world!");
